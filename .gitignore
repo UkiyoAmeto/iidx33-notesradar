@@ -1,11 +1,8 @@
-# build output
 *.dll
 *.lib
 *.pdb
 *.obj
 *.exe
-
-# runtime artefacts
 *.log
 *.dmp
-*.ini.bak
+dist/
