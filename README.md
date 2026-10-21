@@ -34,8 +34,9 @@ beatmania IIDX 33 Sparkle Shower (LDJ) 的 NOTES RADAR 上限解锁插件。
 
 ## 兼容性
 
-- 支持 **IIDX 33 Sparkle Shower**（bm2dx.dll 18,467,992 字节）与
-  **IIDX 34 ZINRAI**（bm2dx.dll 18,200,216 字节），运行时按模块 SizeOfImage 自动识别。
+- 支持 **IIDX 33 Sparkle Shower**（18,467,992 字节）、**IIDX 34 ZINRAI 010**
+  （18,200,216 字节）、**IIDX 34 ZINRAI 012**（17,097,368 字节），运行时按模块
+  SizeOfImage 自动识别。
 - DLL 会做字节签名校验，版本不匹配时跳过对应修改并写日志，不会破坏游戏。
 - 与 spice2x 插件共存，通过 spice2x 的 `-k` 参数加载。
 

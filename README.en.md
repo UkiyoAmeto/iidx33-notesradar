@@ -41,6 +41,8 @@ The full reverse-engineering write-up (parameter table, data structures, verific
 
 - Supports **IIDX 33 Sparkle Shower** (bm2dx.dll 18,467,992 bytes) and
   **IIDX 34 ZINRAI** (bm2dx.dll 18,200,216 bytes); the build is detected at
+  and **IIDX 34 ZINRAI 012** (17,097,368 bytes);
+  runtime via the module \SizeOfImage\.
   runtime via the module `SizeOfImage`.
 - The DLL byte-verifies every patch site; on a mismatch it skips that change and logs it
   instead of corrupting the game.

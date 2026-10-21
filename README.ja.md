@@ -41,6 +41,8 @@ beatmania IIDX 33 Sparkle Shower (LDJ) の NOTES RADAR 上限解除プラグイ�
 
 - **IIDX 33 Sparkle Shower**（bm2dx.dll 18,467,992 バイト）と
   **IIDX 34 ZINRAI**（bm2dx.dll 18,200,216 バイト）に対応。起動時にモジュールの
+  **IIDX 34 ZINRAI 012**（17,097,368 バイト）にも対応。
+  \SizeOfImage\ で自動判別します。
   `SizeOfImage` で自動判別します。
 - DLL は各パッチ箇所のバイト署名を検証し、一致しない場合はその変更をスキップして
   ログに記録します（ゲームを壊しません）。

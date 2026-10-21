@@ -35,9 +35,12 @@ static const profile_t g_profiles[] = {
     // IIDX 33 Sparkle Shower, bm2dx.dll 18,467,992 bytes
     { 196694016u, { 0x827894u, 0x8279C1u, 0x827AEEu }, 0xAD72B0u, 0x952DD0u,
       0x8820u, 0x89A1u, { 0x919Bu, 0u }, "IIDX33" },
-    // IIDX 34 ZINRAI, bm2dx.dll 18,200,216 bytes
+    // IIDX 34 ZINRAI 010, bm2dx.dll 18,200,216 bytes (2026-10-20)
     { 207613952u, { 0x813DE4u, 0x813F11u, 0x81403Eu }, 0xABD730u, 0x939F00u,
-      0x9DB0u, 0x9F31u, { 0xA49Du, 0xA72Bu }, "IIDX34" },
+      0x9DB0u, 0x9F31u, { 0xA49Du, 0xA72Bu }, "IIDX34-010" },
+    // IIDX 34 ZINRAI 012, bm2dx.dll 17,097,368 bytes (2026-09-16)
+    { 206487552u, { 0x746BC4u, 0x746CF1u, 0x746E1Eu }, 0x9F07D0u, 0x86CDF0u,
+      0x9DB0u, 0x9F31u, { 0xA49Du, 0xA72Bu }, "IIDX34-012" },
 };
 
 #define ADDBINARY_STOLEN  20            // 4 条 mov
@@ -496,11 +499,20 @@ static DWORD WINAPI worker(LPVOID unused)
     logf_("bm2dx stage done");
 
     if (g_enable_2dx) {
-        for (int i = 0; i < 600; i++) {
-            if (GetModuleHandleA("2dxtra.dll")) break;
-            Sleep(100);
+        HMODULE dx = GetModuleHandleA("2dxtra.dll");
+        if (!dx) {
+            // spice2x 的 -k 会在游戏初始化之前加载 2dxtra，此时 bm2dx 的
+            // "+0x550 已初始化" 还是 0，它的 DllMain 必然失败（1114）。
+            // 等游戏启动完成后再加载，让它看到一个已初始化的 bm2dx。
+            logf_("2dxtra: not preloaded, waiting 35s for game init...");
+            Sleep(35000);
+            SetLastError(0);
+            dx = LoadLibraryA("2dxtra.dll");
+            logf_("2dxtra: delayed LoadLibrary -> %p (err=%lu)", dx, GetLastError());
+        } else {
+            logf_("2dxtra: already loaded by host (may be too early)");
         }
-        install_2dx_hook(prof);
+        if (dx) install_2dx_hook(prof);
     }
     logf_("all done");
     return 0;
