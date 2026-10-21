@@ -1,4 +1,4 @@
-# IIDX 33 NOTES RADAR Cap Unlock
+﻿# IIDX 33 NOTES RADAR Cap Unlock
 
 > ## ⚠️ 重要警告（オンラインサーバー）
 >
@@ -39,7 +39,9 @@ beatmania IIDX 33 Sparkle Shower (LDJ) の NOTES RADAR 上限解除プラグイ�
 
 ## 対応環境
 
-- **bm2dx.dll 18,467,992 バイト**（IIDX 33 LDJ、2026-10-15 ビルド）でのみ検証済み。
+- **IIDX 33 Sparkle Shower**（bm2dx.dll 18,467,992 バイト）と
+  **IIDX 34 ZINRAI**（bm2dx.dll 18,200,216 バイト）に対応。起動時にモジュールの
+  `SizeOfImage` で自動判別します。
 - DLL は各パッチ箇所のバイト署名を検証し、一致しない場合はその変更をスキップして
   ログに記録します（ゲームを壊しません）。
 - spice2x のプラグインと共存します。`-k` 引数で読み込みます。

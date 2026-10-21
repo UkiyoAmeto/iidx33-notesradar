@@ -1,4 +1,4 @@
-# IIDX 33 NOTES RADAR Cap Unlock
+﻿# IIDX 33 NOTES RADAR Cap Unlock
 
 > ## ⚠️ IMPORTANT — ONLINE SERVERS
 >
@@ -39,7 +39,9 @@ The full reverse-engineering write-up (parameter table, data structures, verific
 
 ## Compatibility
 
-- Verified only against **bm2dx.dll, 18,467,992 bytes** (IIDX 33 LDJ, build 2026-10-15).
+- Supports **IIDX 33 Sparkle Shower** (bm2dx.dll 18,467,992 bytes) and
+  **IIDX 34 ZINRAI** (bm2dx.dll 18,200,216 bytes); the build is detected at
+  runtime via the module `SizeOfImage`.
 - The DLL byte-verifies every patch site; on a mismatch it skips that change and logs it
   instead of corrupting the game.
 - Coexists with spice2x plugins; loaded through spice2x's `-k` argument.

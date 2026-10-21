@@ -1,4 +1,4 @@
-// notesradar.c - beatmania IIDX 33 (LDJ) "Notes Radar" cap extension
+﻿// notesradar.c - beatmania IIDX 33 (LDJ) "Notes Radar" cap extension
 //
 // 1) 谱面上限：把 0x180827610 里 3 处 "jae -> 比值夹到 1.0" 改成 NOP，
 //    折线最后一段继续外推，谱面雷达可 >200.00（选曲画面 / 副屏）。
@@ -18,19 +18,31 @@
 #include <stdio.h>
 #include <string.h>
 
-// --- bm2dx RVAs ------------------------------------------------------------
-#define RVA_CAP_SITE_0    0x0827894u
-#define RVA_CAP_SITE_1    0x08279c1u
-#define RVA_CAP_SITE_2    0x0827aeeu
-#define RVA_ADDBINARY     0x0ad72b0u
+// --- bm2dx build profiles ---------------------------------------------------
+// 按 SizeOfImage 识别游戏版本，一个 DLL 同时支持 33 / 34。
+typedef struct {
+    uint32_t image_size;
+    uint32_t cap[3];
+    uint32_t addbinary;
+    uint32_t recalc;
+    uint32_t dx_writer;
+    uint32_t dx_ret;
+    uint32_t dx_sites[2];      // 2dxtra 写入函数的 call 点，0 = 结束
+    const char *name;
+} profile_t;
+
+static const profile_t g_profiles[] = {
+    // IIDX 33 Sparkle Shower, bm2dx.dll 18,467,992 bytes
+    { 196694016u, { 0x827894u, 0x8279C1u, 0x827AEEu }, 0xAD72B0u, 0x952DD0u,
+      0x8820u, 0x89A1u, { 0x919Bu, 0u }, "IIDX33" },
+    // IIDX 34 ZINRAI, bm2dx.dll 18,200,216 bytes
+    { 207613952u, { 0x813DE4u, 0x813F11u, 0x81403Eu }, 0xABD730u, 0x939F00u,
+      0x9DB0u, 0x9F31u, { 0xA49Du, 0xA72Bu }, "IIDX34" },
+};
+
 #define ADDBINARY_STOLEN  20            // 4 条 mov
-
-// --- 2dxtra RVA ------------------------------------------------------------
-#define RVA_2DX_WRITER    0x008820u
-#define RVA_2DX_RETPATH   0x0089a1u
-
 #define PNR_CAP           20000
-#define BUILD_TAG         "2026-10-19-r4-align"
+#define BUILD_TAG         "2026-10-22-dual"
 
 static FILE *g_log;
 static wchar_t g_dir[MAX_PATH];
@@ -89,23 +101,22 @@ static void write_abs_jmp(uint8_t *p, void *target)
 // ---------------------------------------------------------------------------
 // 1) 去掉谱面雷达 200.00 上限
 // ---------------------------------------------------------------------------
-static int patch_caps(uint8_t *base)
+static int patch_caps(uint8_t *base, const profile_t *p)
 {
-    static const uint32_t sites[3] = { RVA_CAP_SITE_0, RVA_CAP_SITE_1, RVA_CAP_SITE_2 };
     static const uint8_t  expect[6] = { 0x73, 0x18, 0x0f, 0x2f, 0xd0, 0x72 };
     int done = 0;
 
     for (int i = 0; i < 3; i++) {
-        uint8_t *p = base + sites[i];
-        if (memcmp(p, expect, sizeof(expect)) != 0) {
+        uint8_t *site = base + p->cap[i];
+        if (memcmp(site, expect, sizeof(expect)) != 0) {
             logf_("cap site %d signature mismatch, skipped", i);
             continue;
         }
         DWORD old;
-        if (!VirtualProtect(p, 2, PAGE_EXECUTE_READWRITE, &old)) continue;
-        p[0] = 0x90; p[1] = 0x90;
-        VirtualProtect(p, 2, old, &old);
-        FlushInstructionCache(GetCurrentProcess(), p, 2);
+        if (!VirtualProtect(site, 2, PAGE_EXECUTE_READWRITE, &old)) continue;
+        site[0] = 0x90; site[1] = 0x90;
+        VirtualProtect(site, 2, old, &old);
+        FlushInstructionCache(GetCurrentProcess(), site, 2);
         done++;
     }
     logf_("cap removal: %d/3 sites patched", done);
@@ -217,14 +228,14 @@ static uint8_t *build_call_thunk(void *hook, void *back)
     return t;
 }
 
-static int install_2dx_hook(void)
+static int install_2dx_hook(const profile_t *prof)
 {
     HMODULE mod = GetModuleHandleA("2dxtra.dll");
     if (!mod) { logf_("2dxtra.dll not loaded, skip"); return 0; }
 
     uint8_t *base = (uint8_t *)mod;
     g_2dx_base = base;
-    uint8_t *entry = base + RVA_2DX_WRITER;
+    uint8_t *entry = base + prof->dx_writer;
     static const uint8_t expect[9] = { 0x48,0x85,0xC9, 0x0F,0x84,0x78,0x01,0x00,0x00 };
     if (memcmp(entry, expect, 9) != 0) {
         logf_("2dxtra writer prologue mismatch, skip");
@@ -249,13 +260,13 @@ static int install_2dx_hook(void)
     // 只替换"已确认是真实 call 指令"的位置。
     // 之前扫描整个 .text 找 E8 目标，命中了 0x8F0D —— 那其实是数据里的字节，
     // 改掉以后 2dxtra 读自己的表就崩了。这里改成白名单 + 强校验。
-    static const uint32_t kSites[] = { 0x919B };
     int patched = 0;
-    for (size_t s = 0; s < sizeof(kSites) / sizeof(kSites[0]); s++) {
-        uint8_t *p = base + kSites[s];
-        if (p[0] != 0xE8) { logf_("2dxtra site %#x: not E8", kSites[s]); continue; }
+    for (int s = 0; s < 2 && prof->dx_sites[s]; s++) {
+        uint32_t rva = prof->dx_sites[s];
+        uint8_t *p = base + rva;
+        if (p[0] != 0xE8) { logf_("2dxtra site %#x: not E8", rva); continue; }
         int32_t rel = *(int32_t *)(p + 1);
-        if (p + 5 + rel != entry) { logf_("2dxtra site %#x: target mismatch", kSites[s]); continue; }
+        if (p + 5 + rel != entry) { logf_("2dxtra site %#x: target mismatch", rva); continue; }
 
         uint8_t *back = p + 5;
         uint8_t *thunk = build_call_thunk((void *)&hook_2dx_writer, back);
@@ -374,9 +385,9 @@ static uint8_t *build_addbinary_thunk(uint8_t *entry)
     }
 }
 
-static int install_addbinary_hook(uint8_t *base)
+static int install_addbinary_hook(uint8_t *base, const profile_t *p)
 {
-    uint8_t *entry = base + RVA_ADDBINARY;
+    uint8_t *entry = base + p->addbinary;
     static const uint8_t expect[20] = {
         0x4c,0x89,0x4c,0x24,0x20,
         0x4c,0x89,0x44,0x24,0x18,
@@ -460,14 +471,28 @@ static DWORD WINAPI worker(LPVOID unused)
     if (!game) { logf_("bm2dx.dll not found, aborting"); return 0; }
 
     uint8_t *base = (uint8_t *)game;
-    if (g_enable_cap) patch_caps(base);
+    IMAGE_DOS_HEADER *dos = (IMAGE_DOS_HEADER *)base;
+    IMAGE_NT_HEADERS *nt = (IMAGE_NT_HEADERS *)(base + dos->e_lfanew);
+    uint32_t image_size = nt->OptionalHeader.SizeOfImage;
+
+    const profile_t *prof = NULL;
+    for (size_t i = 0; i < sizeof(g_profiles) / sizeof(g_profiles[0]); i++) {
+        if (g_profiles[i].image_size == image_size) { prof = &g_profiles[i]; break; }
+    }
+    if (!prof) {
+        logf_("unsupported bm2dx (SizeOfImage=%lu), nothing patched", image_size);
+        return 0;
+    }
+    logf_("bm2dx profile %s matched (SizeOfImage=%lu)", prof->name, image_size);
+
+    if (g_enable_cap) patch_caps(base, prof);
     if (g_enable_recalc_key) {
-        g_recalc = (void (*)(void))(base + 0x0952DD0u);
+        g_recalc = (void (*)(void))(base + prof->recalc);
         HANDLE hk = CreateThread(NULL, 0, hotkey_thread, NULL, 0, NULL);
         if (hk) CloseHandle(hk);
-        logf_("recalc hotkey F9 armed");
+        logf_("recalc hotkey Ctrl+Alt+R armed");
     }
-    if (g_enable_pnr) install_addbinary_hook(base);
+    if (g_enable_pnr) install_addbinary_hook(base, prof);
     logf_("bm2dx stage done");
 
     if (g_enable_2dx) {
@@ -475,7 +500,7 @@ static DWORD WINAPI worker(LPVOID unused)
             if (GetModuleHandleA("2dxtra.dll")) break;
             Sleep(100);
         }
-        install_2dx_hook();
+        install_2dx_hook(prof);
     }
     logf_("all done");
     return 0;

@@ -365,3 +365,9 @@ PNR 只在两处可观测：`playerdata+0x36A8/0x36DC` 的 6 个 int，以及上
 效果：结算后不管游戏内部算出多少，PNR 数组和界面都会回到 ≤200.00，
 上报给（在线/离线）服务器的值同样是 ≤200.00。在线/离线无法可靠区分，
 因此这项一律生效。
+
+---
+
+## 7. IIDX 34 ZINRAI
+
+See [iidx34.md](iidx34.md) for the IIDX 34 address table, build fingerprints and the version-independent scanning method.
